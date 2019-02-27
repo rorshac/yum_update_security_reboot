@@ -3,7 +3,7 @@
   become: true
   become_method: sudo
   become_user: root
-  hosts: "{{ servers}}"
+  hosts: "{{ servers }}"
   tasks:
     -
       command: "/usr/bin/yum clean all"

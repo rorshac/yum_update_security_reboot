@@ -1,0 +1,59 @@
+---
+-
+  become: true
+  become_method: sudo
+  become_user: root
+  hosts: "{{ servers}}"
+  tasks:
+    -
+      command: "/usr/bin/yum clean all"
+      name: "yum clean"
+
+    -
+      command: "/usr/bin/yum -y update grub2-common"
+      name: "upgrade security packages"
+      when: ansible_distribution_major_version == "7"
+
+    -
+      command: "/usr/bin/yum -y update --security --exclude=kernel* --disablerepo=epel*,mysql*"
+      name: "upgrade security packages"
+
+    -
+      copy:
+        src: /etc/fstab
+        dest: /etc/fstab.pre_patch
+        remote_src: yes
+      name: "save original fstab"
+
+    -
+      copy:
+        src: /etc/fstab
+        dest: /etc/fstab.pre_patch.spare
+        remote_src: yes
+      name: "create extra fstab"
+
+    -
+      shell: "/bin/awk '!/^ *#/ && !/^$/' /etc/fstab.pre_patch |/bin/awk '$5=\"0\", $6=\"0\"' > /etc/fstab"
+      name: "edit fstab to not fs check"
+
+    -
+      async: 1
+      shell: sleep 2 && /sbin/shutdown -r now "Ansible system package upgraded"
+      name: "Restart server"
+      poll: 0
+
+    -
+      local_action: "wait_for host={{ ansible_ssh_host }} state=started"
+      name: "waiting for server to come back after boot"
+
+    -
+      copy:
+        src: /etc/fstab.pre_patch
+        dest: /etc/fstab
+        remote_src: yes
+      name: "put fstab back"
+
+    -
+      command: "/usr/bin/vmware-config-tools.pl -d"
+      name: "Update tools"
+      when: ansible_virtualization_type == "VMware"

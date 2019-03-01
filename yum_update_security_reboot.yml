@@ -5,11 +5,10 @@
   become_user: root
   hosts: "{{ servers }}"
   tasks:
-    -
+    - name: "yum clean"
       command: "/usr/bin/yum clean all"
-      name: "yum clean"
 
-    - name: .rpm upgrade server
+    - name: Apply Security Updates from RHEL Repos, exclude kernel
       yum:
         name: '*'
         state: latest
@@ -36,6 +35,11 @@
     #   shell: "/bin/awk '!/^ *#/ && !/^$/' /etc/fstab.pre_patch |/bin/awk '$5=\"0\", $6=\"0\"' > /etc/fstab"
     #   name: "edit fstab to not fs check"
 
+    - name: "Prevent fsck"
+      file:
+        path: "/fastboot"
+        state: touch
+
     - name: "Restart server"
       reboot:
       # async: 1
@@ -56,6 +60,6 @@
     #     remote_src: yes
     #   name: "put fstab back"
 
-    - name: "Update tools"
+    - name: "Update VMtools"
       command: "/usr/bin/vmware-config-tools.pl -d"
       when: ansible_virtualization_type == "VMware" and ansible_distribution_major_version == "6"

@@ -5,6 +5,18 @@
   become_user: root
   hosts: "{{ servers }}"
   tasks:
+
+    - name: Check for a Prepatch script
+      stat:
+        path: /home/deploy/scripts/pre.sh
+      register: pre_patch
+
+    - name: Execute pre-patch scripts
+      command: /home/deploy/scripts/pre.sh
+      async: 3660
+      poll: 5
+      when: pre_patch.stat.exists
+
     - name: "yum clean"
       command: "/usr/bin/yum clean all"
 
@@ -13,7 +25,7 @@
         path: /usr/bin/vmware-uninstall-tools.pl
       register: tools_exist
 
-    - name: removing vmware tools if a vm and RHEL7/8
+    - name: removing vmware tools if a vm and RHEL7
       command: /usr/bin/vmware-uninstall-tools.pl
       when: ansible_os_family == "RedHat" and ansible_virtualization_type == "VMware" and ansible_distribution_major_version != "6" and tools_exist.stat.exists
 
@@ -48,7 +60,6 @@
         enablerepo: "rhel*,clone*"
       when: ansible_os_family == "RedHat" and ansible_distribution_major_version == "8"
 
-
     - name: "Prevent fsck"
       file:
         path: "/fastboot"
@@ -60,3 +71,12 @@
     - name: "Update VMtools"
       command: "/usr/bin/vmware-config-tools.pl -d"
       when: ansible_distribution_major_version == "6" and tools_exist.stat.exists
+
+    - name: Check for a Post-patch script
+      stat:
+        path: /home/deploy/scripts/post.sh
+      register: post_patch
+
+    - name: Execute Post-patch scripts
+      command: /home/deploy/scripts/post.sh
+      when: post_patch.stat.exists
